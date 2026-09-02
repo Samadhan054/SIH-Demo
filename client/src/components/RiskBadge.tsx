@@ -16,23 +16,23 @@ export const RiskBadge: React.FC<RiskBadgeProps> = ({
 }) => {
   const config = {
     LOW: {
-      bg: 'bg-emerald-950/80 border-emerald-500/40 text-emerald-400',
-      dot: 'bg-emerald-400',
+      bg: 'bg-emerald-50 border-emerald-300 text-emerald-800 font-bold',
+      dot: 'bg-emerald-500',
       label: 'LOW RISK',
     },
     MODERATE: {
-      bg: 'bg-amber-950/80 border-amber-500/40 text-amber-400',
-      dot: 'bg-amber-400',
+      bg: 'bg-amber-50 border-amber-300 text-amber-900 font-bold',
+      dot: 'bg-amber-500',
       label: 'MODERATE RISK',
     },
     HIGH: {
-      bg: 'bg-orange-950/80 border-orange-500/40 text-orange-400',
-      dot: 'bg-orange-400',
+      bg: 'bg-orange-50 border-orange-300 text-orange-900 font-bold',
+      dot: 'bg-orange-500',
       label: 'HIGH RISK',
     },
     SEVERE: {
-      bg: 'bg-red-950/90 border-red-500/60 text-red-400 font-bold',
-      dot: 'bg-red-500 animate-ping',
+      bg: 'bg-red-600 border-red-700 text-white font-extrabold shadow-sm shadow-red-200',
+      dot: 'bg-white animate-ping',
       label: 'SEVERE FLOOD ALERT',
     },
   }[level];
@@ -45,7 +45,7 @@ export const RiskBadge: React.FC<RiskBadgeProps> = ({
 
   return (
     <div
-      className={`inline-flex items-center gap-2 rounded-full border backdrop-blur-md ${config.bg} ${sizeClasses}`}
+      className={`inline-flex items-center gap-2 rounded-full border ${config.bg} ${sizeClasses}`}
     >
       <span className="relative flex h-2 w-2">
         {showPulse && level === 'SEVERE' && (
@@ -55,7 +55,7 @@ export const RiskBadge: React.FC<RiskBadgeProps> = ({
       </span>
       <span>{config.label}</span>
       {score !== undefined && (
-        <span className="ml-1 rounded bg-black/40 px-1.5 py-0.5 text-[10px] opacity-90">
+        <span className={`ml-1 rounded px-1.5 py-0.5 text-[10px] font-mono ${level === 'SEVERE' ? 'bg-black/30 text-white' : 'bg-black/10 text-slate-900'}`}>
           {(score * 100).toFixed(0)}%
         </span>
       )}

@@ -28,7 +28,6 @@ export const Navbar: React.FC = () => {
   const { user, logout, isAuthenticated } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Dynamic Navigation Items based on User Role permissions
   const navItems = [
     { path: '/', label: t('navHome'), allowedRoles: ['CITIZEN', 'RESCUE_TEAM', 'GOVERNMENT', 'ADMIN'] },
     { path: '/dashboard', label: t('navDashboard'), allowedRoles: ['CITIZEN', 'RESCUE_TEAM', 'GOVERNMENT', 'ADMIN'] },
@@ -41,26 +40,26 @@ export const Navbar: React.FC = () => {
   ].filter((item) => item.allowedRoles.includes(user.role));
 
   return (
-    <header className="sticky top-0 z-50 bg-slate-900/95 border-b border-slate-800 backdrop-blur-md">
+    <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm text-slate-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16">
           {/* Brand Logo */}
           <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 via-amber-500 to-red-500 p-0.5 shadow-lg shadow-red-950/50 group-hover:scale-105 transition-transform">
-              <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-                <Flame className="w-6 h-6 text-red-500 animate-pulse" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 via-amber-500 to-red-500 p-0.5 shadow-md shadow-red-200 group-hover:scale-105 transition-transform">
+              <div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center">
+                <Flame className="w-6 h-6 text-red-600 animate-pulse" />
               </div>
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-lg tracking-tight text-white font-mono">
+                <span className="font-extrabold text-lg tracking-tight text-slate-900 font-mono">
                   {t('systemTitle')}
                 </span>
-                <span className="bg-red-950/80 border border-red-500/30 text-red-400 text-[10px] font-mono px-1.5 py-0.2 rounded font-semibold uppercase">
+                <span className="bg-red-50 border border-red-200 text-red-700 text-[10px] font-mono px-1.5 py-0.2 rounded font-bold uppercase">
                   v2.8 CWC India
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 font-medium hidden sm:block">
+              <p className="text-[11px] text-slate-500 font-medium hidden sm:block">
                 {t('subtitle')}
               </p>
             </div>
@@ -76,10 +75,10 @@ export const Navbar: React.FC = () => {
                   to={item.path}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                     item.highlight
-                      ? 'bg-red-600 text-white hover:bg-red-500 font-bold shadow-md shadow-red-950/60 animate-pulse'
+                      ? 'bg-red-600 text-white hover:bg-red-500 font-bold shadow-md shadow-red-200 animate-pulse'
                       : active
-                      ? 'bg-slate-800 text-white font-semibold border border-slate-700'
-                      : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
+                      ? 'bg-slate-100 text-slate-900 font-bold border border-slate-300 shadow-sm'
+                      : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
                   }`}
                 >
                   {item.label}
@@ -92,19 +91,19 @@ export const Navbar: React.FC = () => {
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Live Socket Status */}
             <div
-              className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-mono ${
+              className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-mono font-semibold ${
                 isConnected
-                  ? 'bg-emerald-950/60 border-emerald-500/30 text-emerald-400'
-                  : 'bg-rose-950/60 border-rose-500/30 text-rose-400'
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                  : 'bg-rose-50 border-rose-300 text-rose-700'
               }`}
             >
-              <Radio className={`w-3.5 h-3.5 ${isConnected ? 'animate-pulse text-emerald-400' : ''}`} />
+              <Radio className={`w-3.5 h-3.5 ${isConnected ? 'animate-pulse text-emerald-600' : ''}`} />
               <span>{isConnected ? 'LIVE' : 'OFFLINE'}</span>
             </div>
 
             {/* Authenticated User Role Badge & Auth Action */}
             <div className="flex items-center gap-2">
-              <span className="hidden xl:inline-block px-2.5 py-1 bg-slate-800 text-cyan-300 font-mono text-xs font-bold rounded-lg border border-slate-700">
+              <span className="hidden xl:inline-block px-2.5 py-1 bg-slate-100 text-slate-800 font-mono text-xs font-bold rounded-lg border border-slate-300">
                 {user.role}
               </span>
 
@@ -114,7 +113,7 @@ export const Navbar: React.FC = () => {
                     logout();
                     navigate('/login');
                   }}
-                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"
+                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1 border border-slate-300 transition-colors"
                   title="Logout"
                 >
                   <LogOut className="w-3.5 h-3.5" />
@@ -123,25 +122,25 @@ export const Navbar: React.FC = () => {
               ) : (
                 <Link
                   to="/login"
-                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"
+                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-300 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"
                 >
                   <LogIn className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Login</span>
+                  <span className="hidden sm:inline">Staff Login</span>
                 </Link>
               )}
             </div>
 
             {/* Language Selector */}
-            <div className="flex items-center gap-1 bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-700 text-xs">
-              <Globe className="w-3.5 h-3.5 text-slate-400" />
+            <div className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-lg border border-slate-300 text-xs font-medium text-slate-800">
+              <Globe className="w-3.5 h-3.5 text-slate-500" />
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value as Language)}
-                className="bg-transparent text-slate-200 font-medium cursor-pointer focus:outline-none"
+                className="bg-transparent text-slate-800 font-semibold cursor-pointer focus:outline-none"
               >
-                <option value="en" className="bg-slate-900">EN</option>
-                <option value="ne" className="bg-slate-900">नेपाल (NE)</option>
-                <option value="hi" className="bg-slate-900">हिंदी (HI)</option>
+                <option value="en" className="bg-white">EN</option>
+                <option value="ne" className="bg-white">नेपाल (NE)</option>
+                <option value="hi" className="bg-white">हिंदी (HI)</option>
               </select>
             </div>
 
@@ -150,8 +149,8 @@ export const Navbar: React.FC = () => {
               onClick={() => setLiteMode(!liteMode)}
               className={`p-1.5 rounded-lg border text-xs flex items-center gap-1 transition-colors ${
                 liteMode
-                  ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-bold'
-                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                  ? 'bg-amber-100 border-amber-400 text-amber-800 font-bold'
+                  : 'bg-slate-100 border-slate-300 text-slate-600 hover:text-slate-900'
               }`}
               title="Toggle Low Bandwidth Lite Mode"
             >
@@ -161,7 +160,7 @@ export const Navbar: React.FC = () => {
             {/* Emergency SOS Button */}
             <Link
               to="/sos"
-              className="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-extrabold px-3 py-1.5 rounded-lg text-xs tracking-wider flex items-center gap-1 shadow-lg border border-red-400/40"
+              className="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-extrabold px-3 py-1.5 rounded-lg text-xs tracking-wider flex items-center gap-1 shadow-md shadow-red-200 border border-red-400/40"
             >
               <AlertCircle className="w-4 h-4 animate-bounce" />
               <span>SOS</span>
@@ -170,7 +169,7 @@ export const Navbar: React.FC = () => {
             {/* Mobile Hamburger Toggle */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 text-slate-400 hover:text-white rounded-lg"
+              className="lg:hidden p-2 text-slate-600 hover:text-slate-900 rounded-lg"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -180,14 +179,14 @@ export const Navbar: React.FC = () => {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-slate-900 border-b border-slate-800 px-4 pt-2 pb-4 space-y-2">
+        <div className="lg:hidden bg-white border-b border-slate-200 px-4 pt-2 pb-4 space-y-2">
           {navItems.map((item) => (
             <Link
               key={item.path}
               to={item.path}
               onClick={() => setMobileMenuOpen(false)}
               className={`block px-3 py-2 rounded-md text-base font-medium ${
-                location.pathname === item.path ? 'bg-slate-800 text-white' : 'text-slate-300'
+                location.pathname === item.path ? 'bg-slate-100 text-slate-900 font-bold' : 'text-slate-700'
               }`}
             >
               {item.label}

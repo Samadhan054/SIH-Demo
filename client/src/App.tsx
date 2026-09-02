@@ -32,13 +32,13 @@ const ProtectedRoute: React.FC<{ allowedRoles: UserRole[]; children: React.React
 export const AppContent: React.FC = () => {
   return (
     <Router>
-      <div className="relative min-h-screen flex flex-col bg-slate-950 text-slate-100 font-sans selection:bg-red-600 selection:text-white overflow-x-hidden">
-        {/* Elegant Ambient Background Light Orbs & Grid Layer */}
+      <div className="relative min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-red-600 selection:text-white overflow-x-hidden">
+        {/* Elegant White & Pastel Ambient Background Orbs & Grid Layer */}
         <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-          <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-red-600/10 rounded-full blur-[140px] transform -translate-y-1/2" />
-          <div className="absolute top-1/3 right-10 w-[500px] h-[500px] bg-sky-500/08 rounded-full blur-[130px]" />
-          <div className="absolute bottom-10 left-10 w-[500px] h-[500px] bg-emerald-500/06 rounded-full blur-[120px]" />
-          <div className="absolute inset-0 bg-mesh-pattern opacity-40" />
+          <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-red-400/10 rounded-full blur-[140px] transform -translate-y-1/2" />
+          <div className="absolute top-1/3 right-10 w-[500px] h-[500px] bg-sky-400/12 rounded-full blur-[130px]" />
+          <div className="absolute bottom-10 left-10 w-[500px] h-[500px] bg-emerald-400/10 rounded-full blur-[120px]" />
+          <div className="absolute inset-0 bg-mesh-pattern opacity-60" />
         </div>
 
         {/* Foreground Content */}
