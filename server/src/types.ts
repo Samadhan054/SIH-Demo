@@ -4,6 +4,42 @@ export type SensorStatus = 'ONLINE' | 'WARNING' | 'OFFLINE';
 
 export type SensorType = 'RIVER_GAUGE' | 'WEATHER_STATION' | 'SATELLITE_FEED';
 
+export type ChannelShape = 'braided' | 'meandering' | 'gorge/confined' | 'deltaic';
+
+export interface RiverThresholdRecord {
+  id: string;
+  name: string;
+  basin: string;
+  states: string[];
+  lengthKm: number;
+  catchmentAreaKm2: number;
+  avgWidthMeters: number;
+  avgDepthMeters: number;
+  channelShape: ChannelShape;
+  normalLevelM: number;
+  warningLevelM: number;
+  dangerLevelM: number;
+  extremeLevelM: number;
+  currentLevelM: number;
+  isBreached?: boolean;
+  breachSeverity?: 'NONE' | 'WARNING' | 'DANGER' | 'EXTREME';
+  lastUpdated: string;
+  coordinates?: [number, number][]; // Line path representation
+  gaugesCount?: number;
+  derivationNote?: string;
+}
+
+export interface SimulatedSMSLog {
+  id: string;
+  riverId: string;
+  riverName: string;
+  radiusKm: number;
+  recipientCount: number;
+  message: string;
+  providerStub: string;
+  timestamp: string;
+}
+
 export interface TelemetryPoint {
   timestamp: string;
   waterLevel: number; // in meters
@@ -15,25 +51,27 @@ export interface MonitoringStation {
   id: string;
   name: string;
   type: SensorType;
+  riverId?: string;
   riverName?: string;
   district: string;
   location: {
     lat: number;
     lng: number;
-    elevation: number; // meters above sea level
+    elevation: number;
   };
-  waterLevel: number;       // meters
-  dangerLevel: number;      // meters threshold for flash flood
-  warningLevel: number;     // meters threshold
-  riseRate: number;         // meters per hour
-  rainfall: number;         // mm/h
-  temperature: number;      // °C
-  humidity: number;         // %
-  windSpeed: number;        // km/h
-  soilMoisture: number;     // %
-  slopeGradient: number;    // degrees/slope %
-  valleyNarrowness: number; // multiplier factor (1.0 to 2.5)
-  riskScore: number;        // 0.0 to 1.0
+  waterLevel: number;
+  dangerLevel: number;
+  warningLevel: number;
+  extremeLevel?: number;
+  riseRate: number;
+  rainfall: number;
+  temperature: number;
+  humidity: number;
+  windSpeed: number;
+  soilMoisture: number;
+  slopeGradient: number;
+  valleyNarrowness: number;
+  riskScore: number;
   riskLevel: RiskLevel;
   status: SensorStatus;
   lastUpdated: string;
@@ -44,10 +82,10 @@ export interface RiskZone {
   id: string;
   name: string;
   district: string;
-  coordinates: [number, number][]; // Polygon coordinates
+  coordinates: [number, number][];
   elevationAvg: number;
   slopeGradientAvg: number;
-  populationDensity: number; // people per sq km
+  populationDensity: number;
   totalPopulation: number;
   riskScore: number;
   riskLevel: RiskLevel;
@@ -94,7 +132,7 @@ export interface SOSIncident {
   hasVoiceNote?: boolean;
   voiceNoteUrl?: string;
   mode: SOSMode;
-  packetSizeCompressedBytes?: number; // low bandwidth footprint
+  packetSizeCompressedBytes?: number;
   status: SOSStatus;
   timestamp: string;
   zoneId: string;
@@ -102,8 +140,11 @@ export interface SOSIncident {
   district: string;
   assignedTeamId?: string;
   assignedTeamName?: string;
-  priorityScore: number; // Auto-calculated based on urgency, zone risk, rise rate & headcount
+  priorityScore: number;
   commsLog: CommsMessage[];
+  riverId?: string;
+  riverName?: string;
+  isAutoBreachIncident?: boolean;
 }
 
 export type RescueTeamStatus =
@@ -140,6 +181,7 @@ export interface DistrictAlert {
   active: boolean;
   isManualOverride: boolean;
   issuedBy: string;
+  riverId?: string;
 }
 
 export type UserRole = 'CITIZEN' | 'RESCUE_TEAM' | 'ADMIN' | 'GOVERNMENT';
@@ -151,4 +193,19 @@ export interface User {
   role: UserRole;
   district: string;
   teamId?: string;
+}
+
+export interface DataMethodologyDoc {
+  formulaTitle: string;
+  formulaDescription: string;
+  riverThresholdModelNote: string;
+  adapterProvenanceNotes: {
+    weatherAdapter: string;
+    riverGaugeAdapter: string;
+    satelliteAdapter: string;
+    demAdapter: string;
+    smsAdapter: string;
+  };
+  lastEditedBy: string;
+  lastEditedAt: string;
 }

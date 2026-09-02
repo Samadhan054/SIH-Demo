@@ -1,40 +1,36 @@
-# FloodGuard – Flash Flood Prediction System for Hilly Regions
+# FloodGuard – Flash Flood Prediction & Satellite Rescue System
 
-**FloodGuard** is a disaster-management platform engineered to predict flash floods in mountainous and hilly catchments (inspired by real Himalayan/Nepal flood scenarios) and coordinate real-time satellite emergency rescues for stranded citizens.
+**FloodGuard** is a disaster-management platform engineered to predict flash floods in hilly and river catchments (inspired by real Himalayan and Indian river basin scenarios) and coordinate real-time satellite emergency rescues for stranded citizens.
 
 ---
 
 ## 🌟 Key Features & Modules
 
-1. **Multi-Source Data Ingestion Layer & Risk Engine**:
-   - Multi-parameter Flash Flood Risk Engine combining **Rainfall Intensity ($R$)**, **Water Level Rise Rate ($W_{rate}$)**, **Soil Saturation ($S$)**, and **DEM Terrain Slope ($G$) & Valley Funneling ($V_n$)**.
-   - Swappable Data Adapters (`server/src/adapters/`) structured for easy drop-in of OpenWeatherMap, IMD, NASA SMAP, Sentinel-1, or IoT MQTT sensor streams.
+1. **Per-River CWC Threshold Registry & Extended Risk Engine**:
+   - Seeded with 28+ real Indian rivers (Ganga, Yamuna, Brahmaputra, Godavari, Krishna, Kaveri, Narmada, Tapi, Mahanadi, Indus, Sutlej, Beas, Ravi, Chenab, Jhelum, Sabarmati, Periyar, Tungabhadra, Damodar, Kosi, Gandak, Ghaghara, Son, Chambal, Betwa, Alaknanda, Bhagirathi, Teesta).
+   - Modeled on Central Water Commission (CWC) classification concepts with derived `normalLevelM`, `warningLevelM`, `dangerLevelM`, and `extremeLevelM` gauge thresholds based on channel depth, width, and catchment geometry (*ILLUSTRATIVE DEMO VALUES*).
+   - Extended Risk Engine formula incorporates a per-river threshold breach factor ($F_{\text{threshold}}$).
 
-2. **Live Risk Dashboard (`/dashboard`)**:
-   - Leaflet.js dark map displaying color-coded risk zone polygons (LOW, MODERATE, HIGH, SEVERE).
-   - Clickable river gauge markers with live popups and Recharts 24-hour time-series trends.
-   - **Predictive Timeline Forecast Slider** (0h, 3h, 6h, 12h, 24h risk escalation preview).
+2. **Auto Danger Indication & SMS Alert Adapter Stub**:
+   - Automated event trigger when river levels cross danger or extreme marks.
+   - `server/src/adapters/smsAdapter.ts`: STUB adapter for MSG91 / Twilio / NDMA alert gateway. Logs simulated SMS broadcasts to at-risk residents within catchment radius and surfaces logs in `/admin`.
+   - Extreme threshold breaches automatically create priority-sorted incident tickets in `/rescue-console`.
 
-3. **Satellite SOS Service (`/sos`)**:
-   - Emergency SOS trigger with dual modes: **Satellite SOS Direct Protocol** (compressed binary 128-byte payload working without cellular towers) vs **Standard Cellular SOS**.
-   - Auto/manual GPS picker, headcount, medical urgency selector, distress text note.
-   - **Orbital Handshake Progression**: `SENT` → `SATELLITE_RELAY` → `RECEIVED` → `DISPATCHED` → `RESCUED`.
+3. **Login & Role-Based Access Control (RBAC)**:
+   - Login Portal (`/login`) supporting roles:
+     - **Public / Citizen**: Access to `/dashboard`, `/sos`, `/alerts`.
+     - **Rescue Team**: Adds `/rescue-console` (can assign taskforce, update lifecycle `EN_ROUTE` → `ON_SITE` → `EVACUATING` → `COMPLETED`, send comms).
+     - **Government Authority**: Read-only access to `/rescue-console`, `/admin` analytics, and `/data-methodology`.
+     - **Admin**: Full access including CWC threshold editing, sensor configs, manual override broadcasts, and editing `/data-methodology` content.
+   - Server-side JWT authentication middleware (`server/src/middleware/authMiddleware.ts`).
 
-4. **Emergency & Rescue Coordination Console (`/rescue-console`)**:
-   - Priority-sorted incident queue calculated from urgency level, headcount, zone risk, and water rise rate.
-   - Dispatcher workflow: Assign taskforce (Helicopter, Rescue Boat, All-Terrain Truck) and track status progression (`EN_ROUTE`, `ON_SITE`, `EVACUATING`, `COMPLETED`).
-   - Live comms log per incident between dispatchers and rescue teams.
+4. **Government Data & Methodology Specification (`/data-methodology`)**:
+   - Official portal for government & rescue officials documenting formula weightings, CWC threshold models, and adapter data provenance. Editable by Admin.
 
-5. **Government Override & Sensor Health (`/admin`)**:
-   - Live sensor health grid (monitoring online/offline IoT gauges).
-   - Historical flood event analytics (Rainfall vs Lives Saved correlation charts).
-   - Manual override tool to broadcast red alert banners across all connected citizen devices.
-
-6. **Citizen Alerts & Evacuation Guidance (`/alerts`)**:
-   - District alert subscriptions.
-   - Designated high-ground safe zones & evacuation shelter directory.
-   - **Lite Mode**: Low-bandwidth text-only UI toggle for weak 2G / Satellite connections.
-   - Multi-language support (English, Nepali, Hindi).
+5. **Live River-Linked Map & Actionable SOS Red Dots**:
+   - River selector dropdown re-centers map and displays live gauge readouts vs CWC bands in Recharts popups.
+   - Distinct pulsing red dot markers for active SOS distress signals.
+   - Actionable status advance: Rescue Team and Admin can advance SOS status directly from the map popup, syncing state across WebSockets.
 
 ---
 
@@ -43,6 +39,10 @@
 ### Prerequisites
 - Node.js (v18+)
 - npm or yarn
+
+### Environment Variables (Optional)
+- `JWT_SECRET`: Secret key for JWT signing (default: `floodguard-himalayan-secret-key-2026`)
+- `SMS_PROVIDER_STUB`: Name of simulated SMS provider stub
 
 ### Installation & Launching
 
@@ -63,15 +63,16 @@ Open `http://localhost:3000` in your browser.
 
 ---
 
-## 📐 Flash Flood Risk Algorithm Formula
+## 📐 Extended Risk Score Formula
 
 The **Flash Flood Risk Score** ($0.0$ to $1.0$) is calculated as:
 
-$$\text{RiskScore} = 0.35 \cdot F_{\text{rain}} + 0.30 \cdot F_{\text{rise}} + 0.15 \cdot F_{\text{level}} + 0.10 \cdot F_{\text{soil}} + 0.10 \cdot F_{\text{dem}}$$
+$$\text{RiskScore} = 0.30 \cdot F_{\text{rain}} + 0.25 \cdot F_{\text{rise}} + 0.15 \cdot F_{\text{level}} + 0.15 \cdot F_{\text{threshold}} + 0.08 \cdot F_{\text{soil}} + 0.07 \cdot F_{\text{dem}}$$
 
 - $F_{\text{rain}} = \min(1.0, R / 70.0)$
 - $F_{\text{rise}} = \min(1.0, W_{\text{rate}} / 2.0)$
 - $F_{\text{level}} = \min(1.0, W_{\text{current}} / W_{\text{danger}})$
+- $F_{\text{threshold}} = \text{CWC Warning/Danger/Extreme Breach Ratio}$
 - $F_{\text{soil}} = S / 100.0$
 - $F_{\text{dem}} = \min(1.0, (G / 45.0) \cdot V_n)$
 
@@ -80,6 +81,7 @@ $$\text{RiskScore} = 0.35 \cdot F_{\text{rain}} + 0.30 \cdot F_{\text{rise}} + 0
 - `0.32 - 0.54` → **MODERATE** (Amber)
 - `0.55 - 0.74` → **HIGH** (Orange)
 - `0.75 - 1.00` → **SEVERE** (Red Alert)
+
 ---
 
 ## 👥 Team & Connected Repositories

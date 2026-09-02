@@ -2,11 +2,16 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import authRoutes from './routes/auth.js';
+import { authenticateToken, authorizeRoles, AuthenticatedRequest } from './middleware/authMiddleware.js';
 import { initialAlerts, initialIncidents, initialRescueTeams, initialStations, initialZones } from './seedData.js';
-import { DistrictAlert, MonitoringStation, RescueTeam, RiskZone, SOSIncident } from './types.js';
+import { DataMethodologyDoc, DistrictAlert, MonitoringStation, RescueTeam, RiskZone, RiverThresholdRecord, SOSIncident } from './types.js';
 import { calculateStationRisk, calculateZoneRisk } from './services/riskEngine.js';
 import { sosService } from './services/sosService.js';
 import { riverGaugeAdapter } from './adapters/riverGaugeAdapter.js';
+import { getInitialRiversRegistry } from './data/rivers.js';
+import { alertAdapter } from './adapters/alertAdapter.js';
+import { smsAdapter } from './adapters/smsAdapter.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -20,31 +25,70 @@ const io = new Server(httpServer, {
 app.use(cors());
 app.use(express.json());
 
-// In-Memory Data Store (PostGIS schema ready)
+// Auth Route
+app.use('/api/auth', authRoutes);
+
+// In-Memory Data Store (CWC PostGIS Ready Schema)
 let stations: MonitoringStation[] = [...initialStations];
 let zones: RiskZone[] = [...initialZones];
 let incidents: SOSIncident[] = [...initialIncidents];
 let rescueTeams: RescueTeam[] = [...initialRescueTeams];
 let alerts: DistrictAlert[] = [...initialAlerts];
+let rivers: RiverThresholdRecord[] = getInitialRiversRegistry();
+
+// Default Data Methodology Portal Document
+let methodologyDoc: DataMethodologyDoc = {
+  formulaTitle: 'FloodGuard Himalayan & River Catchment Flash Flood Risk Score',
+  formulaDescription: 'Multi-parameter weighted algorithm combining Rainfall Intensity (30%), Water Rise Rate (25%), Water Level Ratio (15%), CWC Per-River Threshold Breaches (15%), Soil Saturation (8%), and DEM Slope/Valley Funneling (7%).',
+  riverThresholdModelNote: 'Per-River Threshold Registry models CWC (Central Water Commission) Warning, Danger, and Extreme Flood Levels based on channel depth, width, and catchment geometry. NOTE: Values in this prototype are illustrative demo values.',
+  adapterProvenanceNotes: {
+    weatherAdapter: 'Swappable OpenWeatherMap / IMD / NASA POWER Radar Telemetry Adapter',
+    riverGaugeAdapter: 'IoT Ultrasonic & Radar Water Level Sensor Telemetry Stream',
+    satelliteAdapter: 'NASA SMAP / Sentinel-1 Synthetic Aperture Radar Soil Saturation Adapter',
+    demAdapter: 'Digital Elevation Model (DEM) 30m Slope Gradient & Canyon Narrowness Analyzer',
+    smsAdapter: 'MSG91 / NDMA Emergency SMS Gateway Adapter (Simulated Stub)',
+  },
+  lastEditedBy: 'Dr. Ramesh Sharma (Admin)',
+  lastEditedAt: new Date().toISOString(),
+};
 
 // ----------------------------------------------------
 // REST API ROUTES
 // ----------------------------------------------------
 
-// 1. Monitoring Stations Feed
+// 1. Per-River Threshold Registry
+app.get('/api/rivers', (req, res) => {
+  res.json(rivers);
+});
+
+app.get('/api/rivers/:id', (req, res) => {
+  const river = rivers.find((r) => r.id === req.params.id);
+  if (!river) return res.status(404).json({ error: 'River record not found' });
+  res.json(river);
+});
+
+// Admin-only River Threshold editing
+app.patch('/api/rivers/:id/thresholds', authenticateToken, authorizeRoles('ADMIN'), (req, res) => {
+  const { warningLevelM, dangerLevelM, extremeLevelM } = req.body;
+  const river = rivers.find((r) => r.id === req.params.id);
+  if (!river) return res.status(404).json({ error: 'River record not found' });
+
+  if (warningLevelM !== undefined) river.warningLevelM = Number(warningLevelM);
+  if (dangerLevelM !== undefined) river.dangerLevelM = Number(dangerLevelM);
+  if (extremeLevelM !== undefined) river.extremeLevelM = Number(extremeLevelM);
+
+  river.lastUpdated = new Date().toISOString();
+  io.emit('river_threshold_updated', river);
+  res.json(river);
+});
+
+// 2. Monitoring Stations
 app.get('/api/stations', (req, res) => {
   res.json(stations);
 });
 
-app.get('/api/stations/:id', (req, res) => {
-  const station = stations.find((s) => s.id === req.params.id);
-  if (!station) return res.status(404).json({ error: 'Station not found' });
-  res.json(station);
-});
-
-// 2. Risk Zones Feed
+// 3. Risk Zones
 app.get('/api/zones', (req, res) => {
-  // Recalculate zone risks dynamically based on live station telemetry
   const updatedZones = zones.map((z) => {
     const risk = calculateZoneRisk(z, stations);
     return {
@@ -58,9 +102,8 @@ app.get('/api/zones', (req, res) => {
   res.json(zones);
 });
 
-// 3. Emergency SOS Incidents
+// 4. Emergency SOS Incidents & Operations
 app.get('/api/incidents', (req, res) => {
-  // Sorted by auto-calculated priority score descending
   const sorted = [...incidents].sort((a, b) => b.priorityScore - a.priorityScore);
   res.json(sorted);
 });
@@ -91,11 +134,8 @@ app.post('/api/sos', (req, res) => {
   );
 
   incidents.unshift(newIncident);
-
-  // Broadcast to all connected clients & rescue team consoles
   io.emit('sos_incident_created', newIncident);
 
-  // If Satellite mode, trigger low-latency simulated satellite handshake progression
   if (mode === 'SATELLITE') {
     simulateSatelliteHandshake(newIncident.id);
   }
@@ -103,12 +143,8 @@ app.post('/api/sos', (req, res) => {
   res.status(201).json(newIncident);
 });
 
-// 4. Rescue Team Assignment & Dispatch Workflow
-app.get('/api/rescue-teams', (req, res) => {
-  res.json(rescueTeams);
-});
-
-app.patch('/api/incidents/:id/assign', (req, res) => {
+// Rescue Console Write Endpoints: Gated for ADMIN & RESCUE_TEAM
+app.patch('/api/incidents/:id/assign', authenticateToken, authorizeRoles('ADMIN', 'RESCUE_TEAM'), (req: AuthenticatedRequest, res) => {
   const { teamId } = req.body;
   const incident = incidents.find((i) => i.id === req.params.id);
   const team = rescueTeams.find((t) => t.id === teamId);
@@ -125,8 +161,8 @@ app.patch('/api/incidents/:id/assign', (req, res) => {
 
   incident.commsLog.push({
     id: `msg-${Date.now()}`,
-    sender: 'Command Dispatch',
-    role: 'COMMAND_CENTER',
+    sender: req.user?.name || 'Command Dispatch',
+    role: req.user?.role === 'RESCUE_TEAM' ? 'RESCUE_TEAM' : 'COMMAND_CENTER',
     message: `Assigned rescue team: ${team.name} (${team.vehicleType}). Unit Status set to EN_ROUTE.`,
     timestamp: new Date().toISOString(),
   });
@@ -137,7 +173,7 @@ app.patch('/api/incidents/:id/assign', (req, res) => {
   res.json({ incident, team });
 });
 
-app.patch('/api/incidents/:id/status', (req, res) => {
+app.patch('/api/incidents/:id/status', authenticateToken, authorizeRoles('ADMIN', 'RESCUE_TEAM'), (req: AuthenticatedRequest, res) => {
   const { status } = req.body;
   const incident = incidents.find((i) => i.id === req.params.id);
   if (!incident) return res.status(404).json({ error: 'Incident not found' });
@@ -156,8 +192,8 @@ app.patch('/api/incidents/:id/status', (req, res) => {
 
   incident.commsLog.push({
     id: `msg-${Date.now()}`,
-    sender: 'Rescue Operation System',
-    role: 'COMMAND_CENTER',
+    sender: req.user?.name || 'Rescue System',
+    role: req.user?.role === 'RESCUE_TEAM' ? 'RESCUE_TEAM' : 'COMMAND_CENTER',
     message: `Incident status updated to: ${status}`,
     timestamp: new Date().toISOString(),
   });
@@ -166,15 +202,15 @@ app.patch('/api/incidents/:id/status', (req, res) => {
   res.json(incident);
 });
 
-app.post('/api/incidents/:id/comms', (req, res) => {
-  const { sender, role, message } = req.body;
+app.post('/api/incidents/:id/comms', authenticateToken, authorizeRoles('ADMIN', 'RESCUE_TEAM', 'GOVERNMENT'), (req: AuthenticatedRequest, res) => {
+  const { message } = req.body;
   const incident = incidents.find((i) => i.id === req.params.id);
   if (!incident) return res.status(404).json({ error: 'Incident not found' });
 
   const newMsg = {
     id: `msg-${Date.now()}`,
-    sender: sender || 'User',
-    role: role || 'CITIZEN',
+    sender: req.user?.name || 'Dispatcher',
+    role: (req.user?.role as any) || 'COMMAND_CENTER',
     message,
     timestamp: new Date().toISOString(),
   };
@@ -184,13 +220,17 @@ app.post('/api/incidents/:id/comms', (req, res) => {
   res.json(newMsg);
 });
 
-// 5. Emergency Alerts & Government Manual Override
+app.get('/api/rescue-teams', (req, res) => {
+  res.json(rescueTeams);
+});
+
+// 5. Emergency Alerts & Government Manual Overrides
 app.get('/api/alerts', (req, res) => {
   res.json(alerts);
 });
 
-app.post('/api/alerts/broadcast', (req, res) => {
-  const { district, severity, title, message, recommendedAction, issuedBy } = req.body;
+app.post('/api/alerts/broadcast', authenticateToken, authorizeRoles('ADMIN', 'GOVERNMENT'), (req: AuthenticatedRequest, res) => {
+  const { district, severity, title, message, recommendedAction } = req.body;
 
   const newAlert: DistrictAlert = {
     id: `ALERT-${Math.floor(800 + Math.random() * 100)}`,
@@ -203,7 +243,7 @@ app.post('/api/alerts/broadcast', (req, res) => {
     expiresAt: new Date(Date.now() + 24 * 3600000).toISOString(),
     active: true,
     isManualOverride: true,
-    issuedBy: issuedBy || 'Government Emergency Operations Center',
+    issuedBy: req.user?.name ? `${req.user.name} (${req.user.role})` : 'Government Emergency Operations Center',
   };
 
   alerts.unshift(newAlert);
@@ -211,7 +251,7 @@ app.post('/api/alerts/broadcast', (req, res) => {
   res.status(201).json(newAlert);
 });
 
-// 6. Admin Analytics & Historical Log
+// 6. Admin Analytics & Simulated SMS Logs
 app.get('/api/analytics', (req, res) => {
   res.json({
     totalStations: stations.length,
@@ -220,13 +260,33 @@ app.get('/api/analytics', (req, res) => {
     totalRescuedPeople: incidents
       .filter((i) => i.status === 'RESCUED')
       .reduce((acc, i) => acc + i.headcount, 0),
+    smsLogs: smsAdapter.getSMSLogs(),
     historicalFloods: [
       { year: '2024 (Jul)', district: 'Sindhupalchok', rainfallPeak: 142, waterRiseMax: 3.2, casualtiesAvoided: 450 },
       { year: '2024 (Sep)', district: 'Kathmandu Valley', rainfallPeak: 110, waterRiseMax: 2.8, casualtiesAvoided: 1200 },
       { year: '2025 (Aug)', district: 'Nuwakot Trishuli', rainfallPeak: 98, waterRiseMax: 2.4, casualtiesAvoided: 310 },
-      { year: '2026 (Live)', district: 'Himalayan Foothills', rainfallPeak: 82, waterRiseMax: 1.85, casualtiesAvoided: 68 },
+      { year: '2026 (Live)', district: 'Himalayan Catchments', rainfallPeak: 82, waterRiseMax: 1.85, casualtiesAvoided: 68 },
     ],
   });
+});
+
+// 7. Government Data Methodology Portal
+app.get('/api/data-methodology', (req, res) => {
+  res.json(methodologyDoc);
+});
+
+app.put('/api/data-methodology', authenticateToken, authorizeRoles('ADMIN'), (req: AuthenticatedRequest, res) => {
+  const { formulaTitle, formulaDescription, riverThresholdModelNote, adapterProvenanceNotes } = req.body;
+  if (formulaTitle) methodologyDoc.formulaTitle = formulaTitle;
+  if (formulaDescription) methodologyDoc.formulaDescription = formulaDescription;
+  if (riverThresholdModelNote) methodologyDoc.riverThresholdModelNote = riverThresholdModelNote;
+  if (adapterProvenanceNotes) methodologyDoc.adapterProvenanceNotes = adapterProvenanceNotes;
+
+  methodologyDoc.lastEditedBy = req.user?.name || 'Admin';
+  methodologyDoc.lastEditedAt = new Date().toISOString();
+
+  io.emit('methodology_updated', methodologyDoc);
+  res.json(methodologyDoc);
 });
 
 // ----------------------------------------------------
@@ -234,7 +294,6 @@ app.get('/api/analytics', (req, res) => {
 // ----------------------------------------------------
 
 function simulateSatelliteHandshake(incidentId: string) {
-  // Step 1: Sent -> Satellite Relay Acknowledged (after 3 seconds)
   setTimeout(() => {
     const inc = incidents.find((i) => i.id === incidentId);
     if (inc && inc.status === 'SENT') {
@@ -250,7 +309,6 @@ function simulateSatelliteHandshake(incidentId: string) {
     }
   }, 3000);
 
-  // Step 2: Satellite Relay -> Command Center Received (after 6 seconds)
   setTimeout(() => {
     const inc = incidents.find((i) => i.id === incidentId);
     if (inc && inc.status === 'SATELLITE_RELAY') {
@@ -267,8 +325,40 @@ function simulateSatelliteHandshake(incidentId: string) {
   }, 6500);
 }
 
-// Telemetry simulation tick every 6 seconds to trigger dynamic risk score updates
+// Telemetry simulation tick every 6 seconds: updates rivers & stations, checks threshold breaches
 setInterval(() => {
+  // Update River Levels & Check Breaches
+  rivers = rivers.map((river) => {
+    const previousLevel = river.currentLevelM;
+    const delta = (Math.random() - 0.45) * 0.15;
+    const newLevel = Math.max(1.0, Number((river.currentLevelM + delta).toFixed(2)));
+    const updatedRiver = { ...river, currentLevelM: newLevel, lastUpdated: new Date().toISOString() };
+
+    // Evaluate Breach via AlertAdapter
+    const result = alertAdapter.evaluateRiverBreach(updatedRiver, previousLevel);
+    if (result.breached) {
+      updatedRiver.isBreached = true;
+      updatedRiver.breachSeverity = result.severity;
+
+      if (result.autoIncident) {
+        incidents.unshift(result.autoIncident);
+        io.emit('sos_incident_created', result.autoIncident);
+      }
+
+      io.emit('river_danger_breach', {
+        river: updatedRiver,
+        severity: result.severity,
+        smsLog: result.smsLog,
+      });
+    } else if (newLevel < river.warningLevelM) {
+      updatedRiver.isBreached = false;
+      updatedRiver.breachSeverity = 'NONE';
+    }
+
+    return updatedRiver;
+  });
+
+  // Update Stations & Risk Engine
   stations = stations.map((st) => {
     if (st.status === 'OFFLINE') return st;
 
@@ -277,9 +367,10 @@ setInterval(() => {
       st.dangerLevel
     );
 
-    // Slight rain fluctuation
     const rainDelta = (Math.random() - 0.48) * 1.5;
     const newRainfall = Math.max(0, Number((st.rainfall + rainDelta).toFixed(1)));
+
+    const matchingRiver = rivers.find((r) => r.name.toLowerCase() === st.riverName?.toLowerCase());
 
     const updatedSt = {
       ...st,
@@ -289,12 +380,10 @@ setInterval(() => {
       lastUpdated: new Date().toISOString(),
     };
 
-    // Calculate new Risk Score via Risk Engine
-    const { riskScore, riskLevel } = calculateStationRisk(updatedSt);
+    const { riskScore, riskLevel } = calculateStationRisk(updatedSt, matchingRiver);
     updatedSt.riskScore = riskScore;
     updatedSt.riskLevel = riskLevel;
 
-    // Append to telemetry history
     const history = [...st.telemetryHistory];
     if (history.length > 24) history.shift();
     history.push({
@@ -308,8 +397,7 @@ setInterval(() => {
     return updatedSt;
   });
 
-  // Broadcast live telemetry update
-  io.emit('telemetry_tick', { stations, zones });
+  io.emit('telemetry_tick', { stations, zones, rivers });
 }, 6000);
 
 const PORT = process.env.PORT || 5000;

@@ -4,6 +4,42 @@ export type SensorStatus = 'ONLINE' | 'WARNING' | 'OFFLINE';
 
 export type SensorType = 'RIVER_GAUGE' | 'WEATHER_STATION' | 'SATELLITE_FEED';
 
+export type ChannelShape = 'braided' | 'meandering' | 'gorge/confined' | 'deltaic';
+
+export interface RiverThresholdRecord {
+  id: string;
+  name: string;
+  basin: string;
+  states: string[];
+  lengthKm: number;
+  catchmentAreaKm2: number;
+  avgWidthMeters: number;
+  avgDepthMeters: number;
+  channelShape: ChannelShape;
+  normalLevelM: number;
+  warningLevelM: number;
+  dangerLevelM: number;
+  extremeLevelM: number;
+  currentLevelM: number;
+  isBreached?: boolean;
+  breachSeverity?: 'NONE' | 'WARNING' | 'DANGER' | 'EXTREME';
+  lastUpdated: string;
+  coordinates?: [number, number][];
+  gaugesCount?: number;
+  derivationNote?: string;
+}
+
+export interface SimulatedSMSLog {
+  id: string;
+  riverId: string;
+  riverName: string;
+  radiusKm: number;
+  recipientCount: number;
+  message: string;
+  providerStub: string;
+  timestamp: string;
+}
+
 export interface TelemetryPoint {
   timestamp: string;
   waterLevel: number;
@@ -15,6 +51,7 @@ export interface MonitoringStation {
   id: string;
   name: string;
   type: SensorType;
+  riverId?: string;
   riverName?: string;
   district: string;
   location: {
@@ -25,6 +62,7 @@ export interface MonitoringStation {
   waterLevel: number;
   dangerLevel: number;
   warningLevel: number;
+  extremeLevel?: number;
   riseRate: number;
   rainfall: number;
   temperature: number;
@@ -104,6 +142,9 @@ export interface SOSIncident {
   assignedTeamName?: string;
   priorityScore: number;
   commsLog: CommsMessage[];
+  riverId?: string;
+  riverName?: string;
+  isAutoBreachIncident?: boolean;
 }
 
 export type RescueTeamStatus =
@@ -140,6 +181,7 @@ export interface DistrictAlert {
   active: boolean;
   isManualOverride: boolean;
   issuedBy: string;
+  riverId?: string;
 }
 
 export type UserRole = 'CITIZEN' | 'RESCUE_TEAM' | 'ADMIN' | 'GOVERNMENT';
@@ -151,4 +193,20 @@ export interface User {
   role: UserRole;
   district: string;
   teamId?: string;
+  token?: string;
+}
+
+export interface DataMethodologyDoc {
+  formulaTitle: string;
+  formulaDescription: string;
+  riverThresholdModelNote: string;
+  adapterProvenanceNotes: {
+    weatherAdapter: string;
+    riverGaugeAdapter: string;
+    satelliteAdapter: string;
+    demAdapter: string;
+    smsAdapter: string;
+  };
+  lastEditedBy: string;
+  lastEditedAt: string;
 }
