@@ -32,46 +32,57 @@ const ProtectedRoute: React.FC<{ allowedRoles: UserRole[]; children: React.React
 export const AppContent: React.FC = () => {
   return (
     <Router>
-      <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 font-sans">
-        <BroadcastBanner />
-        <Navbar />
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 pt-6">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/sos" element={<SOS />} />
-            <Route path="/alerts" element={<Alerts />} />
-            <Route path="/about" element={<About />} />
+      <div className="relative min-h-screen flex flex-col bg-slate-950 text-slate-100 font-sans selection:bg-red-600 selection:text-white overflow-x-hidden">
+        {/* Elegant Ambient Background Light Orbs & Grid Layer */}
+        <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+          <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-red-600/10 rounded-full blur-[140px] transform -translate-y-1/2" />
+          <div className="absolute top-1/3 right-10 w-[500px] h-[500px] bg-sky-500/08 rounded-full blur-[130px]" />
+          <div className="absolute bottom-10 left-10 w-[500px] h-[500px] bg-emerald-500/06 rounded-full blur-[120px]" />
+          <div className="absolute inset-0 bg-mesh-pattern opacity-40" />
+        </div>
 
-            {/* Protected Role-Gated Routes */}
-            <Route
-              path="/rescue-console"
-              element={
-                <ProtectedRoute allowedRoles={['RESCUE_TEAM', 'GOVERNMENT', 'ADMIN']}>
-                  <RescueConsole />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute allowedRoles={['GOVERNMENT', 'ADMIN']}>
-                  <Admin />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/data-methodology"
-              element={
-                <ProtectedRoute allowedRoles={['GOVERNMENT', 'ADMIN']}>
-                  <DataMethodology />
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-        </main>
-        <Footer />
+        {/* Foreground Content */}
+        <div className="relative z-10 flex-1 flex flex-col">
+          <BroadcastBanner />
+          <Navbar />
+          <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 pt-6">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/sos" element={<SOS />} />
+              <Route path="/alerts" element={<Alerts />} />
+              <Route path="/about" element={<About />} />
+
+              {/* Protected Role-Gated Routes */}
+              <Route
+                path="/rescue-console"
+                element={
+                  <ProtectedRoute allowedRoles={['RESCUE_TEAM', 'GOVERNMENT', 'ADMIN']}>
+                    <RescueConsole />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute allowedRoles={['GOVERNMENT', 'ADMIN']}>
+                    <Admin />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/data-methodology"
+                element={
+                  <ProtectedRoute allowedRoles={['GOVERNMENT', 'ADMIN']}>
+                    <DataMethodology />
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </main>
+          <Footer />
+        </div>
       </div>
     </Router>
   );
