@@ -12,6 +12,17 @@ import { riverGaugeAdapter } from './adapters/riverGaugeAdapter.js';
 import { getInitialRiversRegistry } from './data/rivers.js';
 import { alertAdapter } from './adapters/alertAdapter.js';
 import { smsAdapter } from './adapters/smsAdapter.js';
+import { getInitialHillRegions } from './data/hillRegions.js';
+import { getInitialRescueCenters } from './data/rescueCenters.js';
+import { getInitialTrainingVideos } from './data/trainingVideos.js';
+import { emergencyCommsService } from './services/emergencyCommsService.js';
+import { findNearestCenters } from './services/rescueCenterService.js';
+import { FirstAidSOSRequest, FirstAidInventoryItem } from './types.js';
+import { calculateLandslideRisk } from './services/landslideService.js';
+import { getDemoInSARReadings } from './services/inSARService.js';
+import { getDemoAvalancheReadings } from './services/avalancheService.js';
+import { getDemoWeatherForecasts } from './services/weatherForecastService.js';
+import { calculateHillRisk } from './services/hillRiskService.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -35,6 +46,13 @@ let incidents: SOSIncident[] = [...initialIncidents];
 let rescueTeams: RescueTeam[] = [...initialRescueTeams];
 let alerts: DistrictAlert[] = [...initialAlerts];
 let rivers: RiverThresholdRecord[] = getInitialRiversRegistry();
+
+let hillRegions = getInitialHillRegions(); // from hillRegions.ts
+let rescueCenters = getInitialRescueCenters(); // from rescueCenters.ts  
+let trainingVideos = getInitialTrainingVideos(); // from trainingVideos.ts
+let firstAidSOSRequests: FirstAidSOSRequest[] = [];
+let firstAidInventory: FirstAidInventoryItem[] = []; // seed basic items
+let communicationLogs: any[] = [];
 
 // Default Data Methodology Portal Document
 let methodologyDoc: DataMethodologyDoc = {
@@ -287,6 +305,184 @@ app.put('/api/data-methodology', authenticateToken, authorizeRoles('ADMIN'), (re
 
   io.emit('methodology_updated', methodologyDoc);
   res.json(methodologyDoc);
+});
+
+// --- NEW PHASE 2 ROUTES ---
+
+app.get('/api/hill-regions', (req, res) => {
+  res.json(hillRegions);
+});
+
+app.get('/api/hill-regions/:id', (req, res) => {
+  const region = hillRegions.find(r => r.id === req.params.id);
+  if (!region) return res.status(404).json({ error: 'Not found' });
+  res.json(region);
+});
+
+app.get('/api/soil-saturation', (req, res) => {
+  const readings = hillRegions.map(r => ({
+    id: `SOIL-${r.id}`,
+    regionId: r.id,
+    regionName: r.name,
+    saturationPercent: r.soilSaturation,
+    status: r.soilSaturation > 80 ? 'CRITICAL' : r.soilSaturation > 60 ? 'HIGH' : 'LOW',
+    recentRainfallMm: r.rainfall,
+    waterRetentionMm: Math.random() * 50,
+    slopeRisk: r.landslideRisk,
+    landslideProbability: r.soilSaturation > 70 ? 80 : 20,
+    lastUpdated: new Date().toISOString(),
+    dataStatus: 'DEMO',
+    history: []
+  }));
+  res.json(readings);
+});
+
+app.get('/api/insar', (req, res) => {
+  res.json(getDemoInSARReadings(hillRegions));
+});
+
+app.get('/api/landslide-risk', (req, res) => {
+  const risks = hillRegions.map(r => calculateLandslideRisk({
+    regionId: r.id,
+    regionName: r.name,
+    soilSaturation: r.soilSaturation,
+    rainfallIntensity: r.rainfall,
+    cumulativeRainfall: r.rainfall * 3,
+    previousRainfall: r.rainfall * 2,
+    groundDisplacement: r.groundDisplacement,
+    slopeAngle: 35,
+    elevation: r.elevation,
+    temperature: 15,
+    soilType: 'Clay'
+  }));
+  res.json(risks);
+});
+
+app.get('/api/avalanche', (req, res) => {
+  res.json(getDemoAvalancheReadings(hillRegions));
+});
+
+app.get('/api/weather-forecast', (req, res) => {
+  res.json(getDemoWeatherForecasts(hillRegions));
+});
+
+app.post('/api/first-aid-sos', async (req, res) => {
+  const { citizenName, location, numberOfPeople, state, phone, emergencyDescription, lat, lng } = req.body;
+  if (!citizenName || !location || !numberOfPeople || !state) return res.status(400).json({ error: 'Missing required fields' });
+  
+  const id = `FIRSTAID-${Date.now()}-${Math.random().toString(36).slice(2,7).toUpperCase()}`;
+  
+  let nearestCenter = undefined;
+  let nearestDistance = undefined;
+  if (lat && lng) {
+    const centers = findNearestCenters(lat, lng, rescueCenters, 1);
+    if (centers.length > 0) {
+      nearestCenter = centers[0];
+      nearestDistance = centers[0].distanceKm;
+    }
+  }
+
+  const reqObj: FirstAidSOSRequest = {
+    id, citizenName, location, state, district: req.body.district || '',
+    lat, lng, numberOfPeople, phone, emergencyDescription,
+    nearestRescueCenterId: nearestCenter?.id,
+    nearestRescueCenterName: nearestCenter?.name,
+    nearestRescueCenterDistanceKm: nearestDistance,
+    status: 'NEW',
+    statusHistory: [{ status: 'NEW', timestamp: new Date().toISOString() }],
+    timestamp: new Date().toISOString(),
+    transmissionStatus: 'SAVED_LOCALLY',
+    transmissionLog: [],
+    priorityScore: numberOfPeople * 10
+  };
+
+  const dispatchResult = await emergencyCommsService.dispatch(reqObj);
+  firstAidSOSRequests.push(reqObj);
+
+  res.json({
+    id: reqObj.id,
+    nearestRescueCenterName: reqObj.nearestRescueCenterName,
+    nearestRescueCenterDistanceKm: reqObj.nearestRescueCenterDistanceKm,
+    transmissionStatus: reqObj.transmissionStatus,
+    status: reqObj.status
+  });
+});
+
+app.get('/api/first-aid-sos', authenticateToken, authorizeRoles('ADMIN', 'RESCUE_TEAM', 'GOVERNMENT'), (req, res) => {
+  res.json(firstAidSOSRequests);
+});
+
+app.get('/api/first-aid-sos/:id', (req, res) => {
+  const reqObj = firstAidSOSRequests.find(r => r.id === req.params.id);
+  if (!reqObj) return res.status(404).json({ error: 'Not found' });
+  res.json(reqObj);
+});
+
+app.patch('/api/first-aid-sos/:id/status', authenticateToken, authorizeRoles('ADMIN', 'RESCUE_TEAM'), (req: AuthenticatedRequest, res) => {
+  const { status } = req.body;
+  const reqObj = firstAidSOSRequests.find(r => r.id === req.params.id);
+  if (!reqObj) return res.status(404).json({ error: 'Not found' });
+  
+  reqObj.status = status;
+  reqObj.statusHistory.push({ status, timestamp: new Date().toISOString(), updatedBy: req.user?.name });
+  res.json(reqObj);
+});
+
+app.get('/api/rescue-centers', (req, res) => {
+  res.json(rescueCenters);
+});
+
+app.get('/api/rescue-centers/nearest', (req, res) => {
+  const lat = parseFloat(req.query.lat as string);
+  const lng = parseFloat(req.query.lng as string);
+  if (isNaN(lat) || isNaN(lng)) return res.status(400).json({ error: 'Invalid coordinates' });
+  res.json(findNearestCenters(lat, lng, rescueCenters, 3));
+});
+
+app.get('/api/training', (req, res) => {
+  const lang = req.query.language;
+  const cat = req.query.category;
+  let filtered = trainingVideos;
+  if (lang) filtered = filtered.filter(v => v.language === lang);
+  if (cat) filtered = filtered.filter(v => v.category === cat);
+  res.json(filtered);
+});
+
+app.post('/api/training', authenticateToken, authorizeRoles('ADMIN', 'GOVERNMENT'), (req, res) => {
+  const vid = { ...req.body, id: `VID-${Date.now()}`, createdAt: new Date().toISOString() };
+  trainingVideos.push(vid);
+  res.status(201).json(vid);
+});
+
+app.patch('/api/training/:id', authenticateToken, authorizeRoles('ADMIN', 'GOVERNMENT'), (req, res) => {
+  const idx = trainingVideos.findIndex(v => v.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Not found' });
+  trainingVideos[idx] = { ...trainingVideos[idx], ...req.body };
+  res.json(trainingVideos[idx]);
+});
+
+app.delete('/api/training/:id', authenticateToken, authorizeRoles('ADMIN'), (req, res) => {
+  trainingVideos = trainingVideos.filter(v => v.id !== req.params.id);
+  res.json({ success: true });
+});
+
+app.get('/api/integration-status', (req, res) => {
+  res.json([
+    { service: 'InSAR Satellite', status: 'DEMO', message: 'Simulated Data', lastChecked: new Date().toISOString() },
+    { service: 'Avalanche Radar', status: 'DEMO', message: 'Awaiting Radar integration', lastChecked: new Date().toISOString() },
+    { service: 'Satellite SOS', status: process.env.SATELLITE_SOS_API_KEY ? 'CONNECTED' : 'NOT_CONFIGURED', message: '', lastChecked: new Date().toISOString() }
+  ]);
+});
+
+app.get('/api/first-aid-inventory', authenticateToken, authorizeRoles('ADMIN', 'RESCUE_TEAM', 'GOVERNMENT'), (req, res) => {
+  res.json(firstAidInventory);
+});
+
+app.patch('/api/first-aid-inventory/:id', authenticateToken, authorizeRoles('ADMIN', 'RESCUE_TEAM'), (req, res) => {
+  const idx = firstAidInventory.findIndex(i => i.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Not found' });
+  firstAidInventory[idx] = { ...firstAidInventory[idx], ...req.body, lastUpdated: new Date().toISOString() };
+  res.json(firstAidInventory[idx]);
 });
 
 // ----------------------------------------------------

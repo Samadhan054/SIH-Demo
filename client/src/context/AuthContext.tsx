@@ -4,9 +4,10 @@ import { User, UserRole } from '../types';
 interface AuthContextType {
   user: User;
   token: string | null;
-  login: (role: UserRole, username?: string) => Promise<void>;
+  login: (role: UserRole, username?: string, password?: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
+  loginError: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,6 +28,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('floodguard_token'));
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem('floodguard_user', JSON.stringify(user));
@@ -34,18 +36,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     else localStorage.removeItem('floodguard_token');
   }, [user, token]);
 
-  const login = async (role: UserRole, username?: string) => {
+  const login = async (role: UserRole, username?: string, password?: string) => {
     try {
+      setLoginError(null);
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role, username }),
+        body: JSON.stringify({ role, username, password }),
       });
 
       if (res.ok) {
         const data = await res.json();
         setUser(data.user);
         setToken(data.token);
+      } else if (res.status === 401) {
+        setLoginError('Access Denied. Invalid username or password.');
+      } else {
+        setLoginError('An error occurred during login.');
       }
     } catch (err) {
       console.error('Login error:', err);
@@ -69,6 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       district: 'All Districts',
     });
     setToken(null);
+    setLoginError(null);
     localStorage.removeItem('floodguard_user');
     localStorage.removeItem('floodguard_token');
   };
@@ -81,6 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         logout,
         isAuthenticated: user.role !== 'CITIZEN',
+        loginError,
       }}
     >
       {children}

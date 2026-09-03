@@ -7,13 +7,13 @@ import { Shield, ShieldAlert, Navigation, Lock, ArrowRight, Flame, UserCheck } f
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, loginError, isAuthenticated } = useAuth();
   const { t } = useLanguage();
 
-  // Citizen does NOT require login. Login is ONLY for Admin, Rescue Team, and Government Authority.
   const [selectedRole, setSelectedRole] = useState<UserRole>('ADMIN');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('demo123');
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const roleDescriptions: Record<Exclude<UserRole, 'CITIZEN'>, {
     title: string;
@@ -41,10 +41,22 @@ export const Login: React.FC = () => {
     },
   };
 
+  React.useEffect(() => {
+    if (isAuthenticated) {
+       navigate(roleDescriptions[selectedRole as keyof typeof roleDescriptions].targetPath);
+    }
+  }, [isAuthenticated, navigate, selectedRole, roleDescriptions]);
+
+  React.useEffect(() => {
+    if (loginError) {
+      setLocalError(loginError);
+    }
+  }, [loginError]);
+
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await login(selectedRole, username);
-    navigate(roleDescriptions[selectedRole as keyof typeof roleDescriptions].targetPath);
+    setLocalError(null);
+    await login(selectedRole, username, password);
   };
 
   return (
@@ -134,6 +146,12 @@ export const Login: React.FC = () => {
           <span>LOGIN AS OFFICIAL {selectedRole}</span>
           <ArrowRight className="w-4 h-4" />
         </button>
+
+        {localError && (
+          <div className="p-3 bg-red-950/50 border border-red-500/50 text-red-400 text-xs font-bold rounded-xl text-center">
+            {localError}
+          </div>
+        )}
 
         {/* Public Citizen Bypass Link */}
         <div className="pt-2 text-center border-t border-slate-800/80">

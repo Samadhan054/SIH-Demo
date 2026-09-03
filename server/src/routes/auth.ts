@@ -42,6 +42,11 @@ router.post('/login', (req, res) => {
   const { role, username, password } = req.body;
   const targetRole = (role as UserRole) || 'CITIZEN';
 
+  // Prototype credentials replaceable with DB auth
+  if (username !== 'Flash Flood' || password !== '123456789') {
+    return res.status(401).json({ error: 'Access Denied. Invalid username or password.' });
+  }
+
   const user = demoUsers.find((u) => u.role === targetRole) || {
     id: `USR-${Date.now()}`,
     name: username || `${targetRole} User`,

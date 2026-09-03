@@ -25,6 +25,29 @@ export const Home: React.FC = () => {
 
   return (
     <div className="space-y-8 pb-12">
+      {/* First Aid CTA Card - Added for Phase 3 */}
+      <section className="bg-white border-2 border-red-500 rounded-2xl p-5 shadow-lg shadow-red-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-red-100 text-red-600 rounded-xl">
+            <AlertTriangle className="w-8 h-8 animate-pulse" />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-slate-900">Need Emergency First Aid?</h2>
+            <p className="text-sm text-slate-600 font-medium">
+              Request first-aid assistance from the nearest configured rescue center.
+            </p>
+          </div>
+        </div>
+        <Link
+          to="/first-aid-sos"
+          className="w-full sm:w-auto px-6 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-extrabold text-sm tracking-wide flex items-center justify-center gap-2 shadow-md shrink-0"
+        >
+          <Zap className="w-5 h-5" />
+          <span>REQUEST FIRST AID KIT</span>
+          <ArrowRight className="w-4 h-4" />
+        </Link>
+      </section>
+
       {/* Hero Banner */}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-white via-slate-50 to-red-50/50 border border-slate-200 p-6 sm:p-10 shadow-xl">
         <div className="absolute top-0 right-0 -mt-12 -mr-12 w-96 h-96 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />

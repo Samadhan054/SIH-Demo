@@ -1,0 +1,19 @@
+import { RescueCenter } from '../types.js';
+
+// DEMO DATA
+export function getInitialRescueCenters(): RescueCenter[] {
+  return [
+    { id: 'RC01', name: 'SDRF Rudraprayag', state: 'Uttarakhand', district: 'Rudraprayag', address: 'Near District HQ, Rudraprayag (DEMO)', lat: 30.28, lng: 78.98, contactPhone: '1070', contactStatus: 'OPERATIONAL', availability: 'AVAILABLE', personnelCount: 45, vehiclesAvailable: true, medicalKitsAvailable: 20, dataStatus: 'DEMO' },
+    { id: 'RC02', name: 'NDRF Base Joshimath', state: 'Uttarakhand', district: 'Chamoli', address: 'Joshimath Cantt (DEMO)', lat: 30.55, lng: 79.56, contactPhone: '112', contactStatus: 'OPERATIONAL', availability: 'AVAILABLE', personnelCount: 120, vehiclesAvailable: true, medicalKitsAvailable: 50, dataStatus: 'DEMO' },
+    { id: 'RC03', name: 'SDRF Kullu', state: 'Himachal Pradesh', district: 'Kullu', address: 'Bhuntar Airport Road (DEMO)', lat: 31.87, lng: 77.15, contactPhone: '1077', contactStatus: 'OPERATIONAL', availability: 'AVAILABLE', personnelCount: 30, vehiclesAvailable: true, medicalKitsAvailable: 15, dataStatus: 'DEMO' },
+    { id: 'RC04', name: 'NDRF Regional Response Center', state: 'Sikkim', district: 'Gangtok', address: 'Tadong, Gangtok (DEMO)', lat: 27.31, lng: 88.59, contactPhone: '112', contactStatus: 'OPERATIONAL', availability: 'PARTIAL', personnelCount: 80, vehiclesAvailable: true, medicalKitsAvailable: 40, dataStatus: 'DEMO' },
+    { id: 'RC05', name: 'State Disaster Response HQ', state: 'Assam', district: 'Kamrup', address: 'Dispur (DEMO)', lat: 26.14, lng: 91.79, contactPhone: '1079', contactStatus: 'OPERATIONAL', availability: 'AVAILABLE', personnelCount: 200, vehiclesAvailable: true, medicalKitsAvailable: 100, dataStatus: 'DEMO' },
+    { id: 'RC06', name: 'SDRF Haflong', state: 'Assam', district: 'Dima Hasao', address: 'Haflong Town (DEMO)', lat: 25.17, lng: 93.01, contactPhone: '1077', contactStatus: 'OPERATIONAL', availability: 'PARTIAL', personnelCount: 25, vehiclesAvailable: false, medicalKitsAvailable: 10, dataStatus: 'DEMO' },
+    { id: 'RC07', name: 'SDRF Pithoragarh', state: 'Uttarakhand', district: 'Pithoragarh', address: 'District HQ (DEMO)', lat: 29.58, lng: 80.21, contactPhone: '1070', contactStatus: 'STANDBY', availability: 'PARTIAL', personnelCount: 40, vehiclesAvailable: true, medicalKitsAvailable: 25, dataStatus: 'DEMO' },
+    { id: 'RC08', name: 'NDRF Battalion', state: 'J&K', district: 'Jammu', address: 'Jammu Cantt (DEMO)', lat: 32.72, lng: 74.85, contactPhone: '112', contactStatus: 'OPERATIONAL', availability: 'AVAILABLE', personnelCount: 250, vehiclesAvailable: true, medicalKitsAvailable: 150, dataStatus: 'DEMO' },
+    { id: 'RC09', name: 'SDRF Ramban', state: 'J&K', district: 'Ramban', address: 'Highway Post (DEMO)', lat: 33.24, lng: 75.24, contactPhone: '1077', contactStatus: 'OPERATIONAL', availability: 'AVAILABLE', personnelCount: 35, vehiclesAvailable: true, medicalKitsAvailable: 15, dataStatus: 'DEMO' },
+    { id: 'RC10', name: 'NDRF Itanagar', state: 'Arunachal Pradesh', district: 'Papum Pare', address: 'Naharlagun (DEMO)', lat: 27.10, lng: 93.61, contactPhone: '112', contactStatus: 'OPERATIONAL', availability: 'AVAILABLE', personnelCount: 90, vehiclesAvailable: true, medicalKitsAvailable: 45, dataStatus: 'DEMO' },
+    { id: 'RC11', name: 'SDRF Shillong', state: 'Meghalaya', district: 'East Khasi Hills', address: 'Shillong Central (DEMO)', lat: 25.57, lng: 91.88, contactPhone: '1070', contactStatus: 'OPERATIONAL', availability: 'AVAILABLE', personnelCount: 50, vehiclesAvailable: true, medicalKitsAvailable: 30, dataStatus: 'DEMO' },
+    { id: 'RC12', name: 'SDRF Tawang', state: 'Arunachal Pradesh', district: 'Tawang', address: 'Tawang Town (DEMO)', lat: 27.58, lng: 91.86, contactPhone: '1077', contactStatus: 'STANDBY', availability: 'PARTIAL', personnelCount: 20, vehiclesAvailable: false, medicalKitsAvailable: 8, dataStatus: 'DEMO' }
+  ];
+}

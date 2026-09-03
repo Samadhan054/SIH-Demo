@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { BroadcastBanner } from './components/BroadcastBanner';
+import { SafetyDisclaimer } from './components/SafetyDisclaimer';
 import { Home } from './pages/Home';
 import { Dashboard } from './pages/Dashboard';
 import { SOS } from './pages/SOS';
@@ -15,6 +16,20 @@ import { Alerts } from './pages/Alerts';
 import { About } from './pages/About';
 import { Login } from './pages/Login';
 import { DataMethodology } from './pages/DataMethodology';
+import { HillDashboard } from './pages/HillDashboard';
+import { SoilSaturation } from './pages/SoilSaturation';
+import { InSARMonitoring } from './pages/InSARMonitoring';
+import { LandslideEarlyWarning } from './pages/LandslideEarlyWarning';
+import { AvalancheMonitoring } from './pages/AvalancheMonitoring';
+import { WeatherForecast } from './pages/WeatherForecast';
+import { HazardMap } from './pages/HazardMap';
+import { FirstAidSOS } from './pages/FirstAidSOS';
+import { SOSTracker } from './pages/SOSTracker';
+import { FirstAidManagement } from './pages/FirstAidManagement';
+import { DisasterTraining } from './pages/DisasterTraining';
+import { TrainingAdmin } from './pages/TrainingAdmin';
+import { GovernmentDashboard } from './pages/GovernmentDashboard';
+import { IntegrationStatus } from './pages/IntegrationStatus';
 import { UserRole } from './types';
 
 // Protected Route Guard Component
@@ -43,6 +58,7 @@ export const AppContent: React.FC = () => {
 
         {/* Foreground Content */}
         <div className="relative z-10 flex-1 flex flex-col">
+          <SafetyDisclaimer />
           <BroadcastBanner />
           <Navbar />
           <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 pt-6">
@@ -53,6 +69,18 @@ export const AppContent: React.FC = () => {
               <Route path="/sos" element={<SOS />} />
               <Route path="/alerts" element={<Alerts />} />
               <Route path="/about" element={<About />} />
+              
+              {/* New Phase 3 Public Routes */}
+              <Route path="/hill-dashboard" element={<HillDashboard />} />
+              <Route path="/soil-saturation" element={<SoilSaturation />} />
+              <Route path="/insar" element={<InSARMonitoring />} />
+              <Route path="/landslide" element={<LandslideEarlyWarning />} />
+              <Route path="/avalanche" element={<AvalancheMonitoring />} />
+              <Route path="/weather" element={<WeatherForecast />} />
+              <Route path="/hazard-map" element={<HazardMap />} />
+              <Route path="/first-aid-sos" element={<FirstAidSOS />} />
+              <Route path="/sos-tracker" element={<SOSTracker />} />
+              <Route path="/training" element={<DisasterTraining />} />
 
               {/* Protected Role-Gated Routes */}
               <Route
@@ -76,6 +104,38 @@ export const AppContent: React.FC = () => {
                 element={
                   <ProtectedRoute allowedRoles={['GOVERNMENT', 'ADMIN']}>
                     <DataMethodology />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/first-aid-management"
+                element={
+                  <ProtectedRoute allowedRoles={['RESCUE_TEAM', 'GOVERNMENT', 'ADMIN']}>
+                    <FirstAidManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/training-admin"
+                element={
+                  <ProtectedRoute allowedRoles={['GOVERNMENT', 'ADMIN']}>
+                    <TrainingAdmin />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/government-dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={['GOVERNMENT', 'ADMIN']}>
+                    <GovernmentDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/integration-status"
+                element={
+                  <ProtectedRoute allowedRoles={['ADMIN']}>
+                    <IntegrationStatus />
                   </ProtectedRoute>
                 }
               />

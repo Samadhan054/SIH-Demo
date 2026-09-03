@@ -28,16 +28,31 @@ export const Navbar: React.FC = () => {
   const { user, logout, isAuthenticated } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const navItems = [
+  const allNavItems = [
     { path: '/', label: t('navHome'), allowedRoles: ['CITIZEN', 'RESCUE_TEAM', 'GOVERNMENT', 'ADMIN'] },
     { path: '/dashboard', label: t('navDashboard'), allowedRoles: ['CITIZEN', 'RESCUE_TEAM', 'GOVERNMENT', 'ADMIN'] },
     { path: '/sos', label: t('navSOS'), highlight: true, allowedRoles: ['CITIZEN', 'RESCUE_TEAM', 'GOVERNMENT', 'ADMIN'] },
+    { path: '/hill-dashboard', label: t('navHillDashboard'), allowedRoles: ['CITIZEN', 'RESCUE_TEAM', 'GOVERNMENT', 'ADMIN'] },
+    { path: '/hazard-map', label: t('navHazardMap'), allowedRoles: ['CITIZEN', 'RESCUE_TEAM', 'GOVERNMENT', 'ADMIN'] },
+    { path: '/first-aid-sos', label: t('navFirstAidSOS'), allowedRoles: ['CITIZEN', 'RESCUE_TEAM', 'GOVERNMENT', 'ADMIN'] },
+    { path: '/sos-tracker', label: 'SOS Tracker', allowedRoles: ['CITIZEN', 'RESCUE_TEAM', 'GOVERNMENT', 'ADMIN'] },
+    { path: '/training', label: t('navTraining'), allowedRoles: ['CITIZEN', 'RESCUE_TEAM', 'GOVERNMENT', 'ADMIN'] },
+    { path: '/first-aid-management', label: 'First Aid Admin', allowedRoles: ['RESCUE_TEAM', 'GOVERNMENT', 'ADMIN'] },
+    { path: '/government-dashboard', label: t('navGovernment'), allowedRoles: ['GOVERNMENT', 'ADMIN'] },
+    { path: '/training-admin', label: 'Training Admin', allowedRoles: ['GOVERNMENT', 'ADMIN'] },
+    { path: '/integration-status', label: t('navIntegration'), allowedRoles: ['ADMIN'] },
     { path: '/rescue-console', label: t('navRescueConsole'), allowedRoles: ['RESCUE_TEAM', 'GOVERNMENT', 'ADMIN'] },
     { path: '/admin', label: t('navAdmin'), allowedRoles: ['GOVERNMENT', 'ADMIN'] },
     { path: '/alerts', label: t('navAlerts'), allowedRoles: ['CITIZEN', 'RESCUE_TEAM', 'GOVERNMENT', 'ADMIN'] },
     { path: '/data-methodology', label: 'Data Methodology', allowedRoles: ['GOVERNMENT', 'ADMIN'] },
     { path: '/about', label: t('navAbout'), allowedRoles: ['CITIZEN', 'RESCUE_TEAM', 'GOVERNMENT', 'ADMIN'] },
-  ].filter((item) => item.allowedRoles.includes(user.role));
+  ];
+
+  const navItems = allNavItems.filter((item) => item.allowedRoles.includes(user.role));
+  const primaryNavItems = navItems.slice(0, 4);
+  const moreNavItems = navItems.slice(4);
+
+  const [moreDropdownOpen, setMoreDropdownOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm text-slate-900">
@@ -66,8 +81,8 @@ export const Navbar: React.FC = () => {
           </Link>
 
           {/* Desktop Nav Links */}
-          <nav className="hidden lg:flex items-center space-x-1">
-            {navItems.map((item) => {
+          <nav className="hidden lg:flex items-center space-x-1 relative">
+            {primaryNavItems.map((item) => {
               const active = location.pathname === item.path;
               return (
                 <Link
@@ -85,6 +100,30 @@ export const Navbar: React.FC = () => {
                 </Link>
               );
             })}
+            {moreNavItems.length > 0 && (
+              <div className="relative">
+                <button
+                  onClick={() => setMoreDropdownOpen(!moreDropdownOpen)}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-700 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-1"
+                >
+                  More
+                </button>
+                {moreDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-50">
+                    {moreNavItems.map((item) => (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        onClick={() => setMoreDropdownOpen(false)}
+                        className={`block px-4 py-2 text-sm ${location.pathname === item.path ? 'bg-slate-50 text-slate-900 font-bold' : 'text-slate-700 hover:bg-slate-50'}`}
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </nav>
 
           {/* Right Controls Bar */}
