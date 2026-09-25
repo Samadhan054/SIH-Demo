@@ -30,6 +30,7 @@ import { DisasterTraining } from './pages/DisasterTraining';
 import { TrainingAdmin } from './pages/TrainingAdmin';
 import { GovernmentDashboard } from './pages/GovernmentDashboard';
 import { IntegrationStatus } from './pages/IntegrationStatus';
+import { Chatbot } from './components/chatbot/Chatbot';
 import { UserRole } from './types';
 
 // Protected Route Guard Component
@@ -142,6 +143,8 @@ export const AppContent: React.FC = () => {
             </Routes>
           </main>
           <Footer />
+          {/* Global AI Chatbot — available on all pages */}
+          <Chatbot />
         </div>
       </div>
     </Router>

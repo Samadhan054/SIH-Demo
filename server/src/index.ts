@@ -596,7 +596,156 @@ setInterval(() => {
   io.emit('telemetry_tick', { stations, zones, rivers });
 }, 6000);
 
+// ============================================================
+// CHAT API ROUTES
+// ============================================================
+// Lazy-imported so missing AI_API_KEY doesn't crash startup
+
+import { chatService } from './services/chatService.js';
+import { aiService, DEFAULT_SYSTEM_PROMPT } from './services/ai/aiService.js';
+
+// Rate limiting: simple in-memory (production: use Redis)
+const chatRateLimit = new Map<string, { count: number; resetAt: number }>();
+function checkRateLimit(userId: string, maxPerMinute = 15): boolean {
+  const now = Date.now();
+  const entry = chatRateLimit.get(userId);
+  if (!entry || now > entry.resetAt) {
+    chatRateLimit.set(userId, { count: 1, resetAt: now + 60_000 });
+    return true;
+  }
+  if (entry.count >= maxPerMinute) return false;
+  entry.count++;
+  return true;
+}
+
+// POST /api/chat/conversations — create a new conversation
+app.post('/api/chat/conversations', authenticateToken, (req: AuthenticatedRequest, res) => {
+  const userId = req.user!.id;
+  const { title } = req.body;
+  const conversation = chatService.createConversation(userId, title || 'New Conversation');
+  res.status(201).json(conversation);
+});
+
+// GET /api/chat/conversations — list user's conversations
+app.get('/api/chat/conversations', authenticateToken, (req: AuthenticatedRequest, res) => {
+  const userId = req.user!.id;
+  const conversations = chatService.getConversations(userId);
+  res.json(conversations);
+});
+
+// GET /api/chat/conversations/:id — get conversation + messages
+app.get('/api/chat/conversations/:id', authenticateToken, (req: AuthenticatedRequest, res) => {
+  const userId = req.user!.id;
+  const conversation = chatService.getConversation(req.params.id, userId);
+  if (!conversation) return res.status(404).json({ error: 'Conversation not found.' });
+
+  const messages = chatService.getMessages(req.params.id, userId) || [];
+  res.json({ conversation, messages });
+});
+
+// DELETE /api/chat/conversations/:id
+app.delete('/api/chat/conversations/:id', authenticateToken, (req: AuthenticatedRequest, res) => {
+  const userId = req.user!.id;
+  const deleted = chatService.deleteConversation(req.params.id, userId);
+  if (!deleted) return res.status(404).json({ error: 'Conversation not found.' });
+  res.json({ success: true });
+});
+
+// POST /api/chat/conversations/:id/messages — send message + stream AI response via Socket.IO
+app.post('/api/chat/conversations/:id/messages', authenticateToken, async (req: AuthenticatedRequest, res) => {
+  const userId = req.user!.id;
+  const conversationId = req.params.id;
+  const { content, socketId } = req.body as { content: string; socketId?: string };
+
+  // Input validation
+  if (!content || typeof content !== 'string') {
+    return res.status(400).json({ error: 'Message content is required.' });
+  }
+  const trimmed = content.trim();
+  if (trimmed.length === 0) return res.status(400).json({ error: 'Message cannot be empty.' });
+  if (trimmed.length > 4000) return res.status(400).json({ error: 'Message too long. Maximum 4000 characters.' });
+
+  // Rate limiting
+  if (!checkRateLimit(userId)) {
+    return res.status(429).json({ error: 'Too many messages. Please wait a moment before sending again.' });
+  }
+
+  // Ownership check
+  const conversation = chatService.getConversation(conversationId, userId);
+  if (!conversation) return res.status(404).json({ error: 'Conversation not found.' });
+
+  // Save user message
+  const userMessage = chatService.addMessage(conversationId, userId, 'user', trimmed);
+  if (!userMessage) return res.status(500).json({ error: 'Failed to save message.' });
+
+  // Create placeholder assistant message
+  const assistantMessage = chatService.addMessage(conversationId, userId, 'assistant', '');
+  if (!assistantMessage) return res.status(500).json({ error: 'Failed to initialize response.' });
+
+  // Immediately respond with user message + message IDs so client can start listening
+  res.status(201).json({
+    userMessage,
+    assistantMessageId: assistantMessage.id,
+    streaming: true,
+  });
+
+  // Determine which socket to emit to (user's specific socket or broadcast to userId room)
+  const emitTarget = socketId ? io.to(socketId) : io;
+
+  // Notify client that streaming is starting
+  emitTarget.emit('chat_stream_start', { conversationId, messageId: assistantMessage.id });
+
+  try {
+    // Build AI context from conversation history
+    const aiMessages = chatService.getAIContext(conversationId, userId, 20);
+
+    // Stream AI response
+    const fullContent = await aiService.streamChat(
+      aiMessages,
+      DEFAULT_SYSTEM_PROMPT,
+      (chunk: string) => {
+        emitTarget.emit('chat_stream_chunk', {
+          conversationId,
+          messageId: assistantMessage.id,
+          chunk,
+        });
+      }
+    );
+
+    // Save completed response
+    chatService.updateMessageContent(assistantMessage.id, conversationId, fullContent);
+
+    // Notify client streaming is done
+    emitTarget.emit('chat_stream_end', {
+      conversationId,
+      messageId: assistantMessage.id,
+      fullContent,
+    });
+
+  } catch (err: any) {
+    const errMsg = err?.message || 'AI service error. Please try again.';
+    console.error('[Chat] AI streaming error:', errMsg);
+
+    // Update message with error
+    chatService.updateMessageContent(assistantMessage.id, conversationId, `⚠️ ${errMsg}`);
+
+    emitTarget.emit('chat_stream_error', {
+      conversationId,
+      messageId: assistantMessage.id,
+      error: 'AI service is temporarily unavailable. Please try again.',
+    });
+  }
+});
+
+// Socket.IO: join personal room for targeted streaming
+io.on('connection', (socket) => {
+  socket.on('chat_join', (userId: string) => {
+    socket.join(`user:${userId}`);
+  });
+});
+
 const PORT = process.env.PORT || 5000;
 httpServer.listen(PORT, () => {
   console.log(`⚡ FloodGuard Server running on http://localhost:${PORT}`);
 });
+
